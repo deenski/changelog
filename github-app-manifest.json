@@ -2,7 +2,7 @@
   "name": "Changelog",
   "url": "https://github.com/deenski/changelog",
   "hook_attributes": {
-    "url": "https://REPLACE.execute-api.us-east-1.amazonaws.com/webhook",
+    "url": "https://pn4i4lubz3.execute-api.us-east-1.amazonaws.com/webhook",
     "active": true
   },
   "redirect_url": "https://github.com/deenski/changelog",
