@@ -1,47 +1,44 @@
 # GitHub App wiring (KAN-2)
 
-Create the App after `cdk deploy` so you have `WebhookUrl` from stack outputs.
+**Shipped App:** [`deenski-changelog`](https://github.com/apps/deenski-changelog) (App ID `4830006`), installed on `deenski/changelog`.
 
-## One-click manifest
+Create flow (historical / recreate):
 
-1. Open (logged in as `deenski`):
-   `https://github.com/settings/apps/new?state=changelog`
+1. Open (logged in as `deenski`): Developer settings → GitHub Apps → New.
 2. Or use the manifest flow: paste `github-app-manifest.json` via
    [Create GitHub App from manifest](https://docs.github.com/en/apps/sharing-github-apps/registering-a-github-app-from-a-manifest).
-3. Set **Webhook URL** to the CDK output `WebhookUrl` (…/webhook).
-4. Generate a webhook secret; put it in Secrets Manager as `github_webhook_secret`.
-5. Generate a private key; store PEM as `github_private_key` (reserved; v0 receive is HMAC-only).
-6. Install the App on **only** `deenski/changelog` (dogfood).
+   Manifest `name` must be globally unique (`deenski-changelog`, not `Changelog`).
+3. Webhook URL = CDK output `WebhookUrl` (live: `https://pn4i4lubz3.execute-api.us-east-1.amazonaws.com/webhook`).
+4. Webhook secret → Secrets Manager `github_webhook_secret`.
+5. Private key PEM → `github_private_key` (v0 receive is HMAC-only; PEM reserved for App API).
+6. Install on **only** `deenski/changelog`.
 
 ## Secrets Manager JSON
 
-Secret name suggestion: `changelog/prod`
+Secret: `changelog/prod`
 
 ```json
 {
-  "github_app_id": "REPLACE",
+  "github_app_id": "4830006",
   "github_private_key": "-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----",
   "github_webhook_secret": "REPLACE",
   "slack_bot_token": "xoxb-REPLACE",
-  "slack_channel": "#shipped"
+  "slack_channel": "C0BUV8EDEKD"
 }
 ```
 
 ## Slack
 
-- Channel must exist: `#shipped` (create if missing).
-- Bot needs `chat:write` in that channel.
+- Channel: `#shipped` (`C0BUV8EDEKD`).
+- Bot needs `chat:write` and membership in that channel.
 
 ## Deploy order
 
 ```bash
-# 1. Create empty secret shell (values filled after App + Slack bot exist)
 aws secretsmanager create-secret --name changelog/prod --secret-string file://secrets.example.json
 
-# 2. CDK
 cd infra
 cdk deploy -c secretsArn=$(aws secretsmanager describe-secret --secret-id changelog/prod --query ARN --output text)
 
-# 3. Create/update GitHub App webhook URL from stack output WebhookUrl
-# 4. Allowlist repo in DynamoDB Repos table: {"repo":"deenski/changelog","muted":false}
+# Allowlist: DynamoDB Repos item {"repo":"deenski/changelog","muted":false}
 ```

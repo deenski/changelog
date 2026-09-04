@@ -1,5 +1,5 @@
 {
-  "name": "Changelog",
+  "name": "deenski-changelog",
   "url": "https://github.com/deenski/changelog",
   "hook_attributes": {
     "url": "https://pn4i4lubz3.execute-api.us-east-1.amazonaws.com/webhook",
