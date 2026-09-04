@@ -1,0 +1,18 @@
+{
+  "name": "deenski-changelog",
+  "url": "https://github.com/deenski/changelog",
+  "hook_attributes": {
+    "url": "https://pn4i4lubz3.execute-api.us-east-1.amazonaws.com/webhook",
+    "active": true
+  },
+  "redirect_url": "https://github.com/deenski/changelog",
+  "callback_urls": [],
+  "description": "Posts merge notes to Slack #shipped (Changelog KAN-2)",
+  "public": false,
+  "default_events": ["pull_request"],
+  "default_permissions": {
+    "contents": "read",
+    "pull_requests": "read",
+    "metadata": "read"
+  }
+}
