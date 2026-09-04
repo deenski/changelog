@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .aws-sam/
+cdk.out/
 .coverage
 htmlcov/
 *.egg-info/

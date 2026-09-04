@@ -11,14 +11,15 @@ Out of scope here: public page, Stripe (KAN-3/KAN-4), Jira.
 - API Gateway HTTP API
 - Lambda (Python 3.12)
 - DynamoDB (`notes` by SHA, `repos` allowlist/mute)
-- Secrets Manager (GitHub App private key + Slack bot token)
+- Secrets Manager (GitHub App + Slack bot token)
+- **IaC: AWS CDK (Python)**
 
 ## Layout
 
 ```
-src/changelog/     # Lambda package
-template.yaml      # SAM
-tests/             # unit tests (no AWS)
+src/changelog/   # Lambda package
+infra/           # CDK app + stack
+tests/           # unit tests (no AWS)
 ```
 
 ## Local tests
@@ -32,16 +33,21 @@ pytest -q
 ## Deploy (after secrets exist)
 
 ```bash
-sam build
-sam deploy --guided
+cd infra
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cdk bootstrap   # once per account/region
+cdk deploy -c secretsArn=arn:aws:secretsmanager:...:secret:changelog/...
 ```
+
+Webhook URL is a stack output (`WebhookUrl`).
 
 ## GitHub App
 
-1. Create a GitHub App with `pull_request` events; permission: Contents read, Pull requests read.
-2. Set webhook URL to the API Gateway `/webhook` route; secret = value in Secrets Manager.
-3. Install on allowlisted repos only (or rely on DynamoDB allowlist).
-4. Put App ID + private key PEM + webhook secret in Secrets Manager JSON:
+1. Create a GitHub App with `pull_request` events; Contents read, Pull requests read.
+2. Webhook URL = stack `WebhookUrl`; secret matches Secrets Manager.
+3. Install on allowlisted repos (DynamoDB `repos` table still gates ingest).
+4. Secrets Manager JSON:
 
 ```json
 {
@@ -53,18 +59,22 @@ sam deploy --guided
 }
 ```
 
+`github_app_id` / private key are reserved for future App API calls. **v0 receive path is HMAC webhook verify only.**
+
 ## Allowlist (v0)
 
-Put items in the `Repos` table:
-
-| pk (S) | muted (BOOL) |
-|--------|--------------|
+| repo (S) | muted (BOOL) |
+|----------|--------------|
 | `owner/repo` | `false` |
 
-Muted or missing → no-op. Free tier: at most 5 non-muted rows; extras no-op.
+Muted or missing → no-op. Free-tier ≤5 is enforced when **adding** a repo (`Store.try_add_repo`), not on every ingest — overfilling the table must not silence the first five.
+
+## Failure / retry
+
+Notes are written `notified=false`, Slack runs, then `notified=true`. If Slack fails, the handler returns **5xx** and GitHub redelivers; pending notes retry Slack without being stuck as silent duplicates.
 
 ## Dogfood
 
-1. Deploy.
-2. Add `deenski/changelog` (or another repo) to allowlist.
-3. Merge a PR → expect one Slack note per merge commit SHA; redeliver webhook → no duplicate.
+1. Deploy via CDK.
+2. `try_add_repo` / put `deenski/changelog` in `repos`.
+3. Merge a PR → one Slack note per merge SHA; redeliver → no duplicate after notified.
