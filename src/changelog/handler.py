@@ -48,10 +48,9 @@ def process_event(
     if repo_cfg.get("muted", False):
         return _response(200, {"ok": True, "skipped": "muted"})
 
-    active = store.count_active_repos()
-    if active > free_tier_limit:
-        # Config already over free tier — no-op until Pro (KAN-4).
-        return _response(200, {"ok": True, "skipped": "free_tier_exceeded"})
+    # Free-tier is enforced on allowlist *add* (try_add_repo), not ingest.
+    # Already-allowlisted repos keep shipping even if the table was overfilled.
+    _ = free_tier_limit
 
     created = store.put_note_if_new(
         merge["sha"],
@@ -64,18 +63,28 @@ def process_event(
         },
     )
     if not created:
-        return _response(200, {"ok": True, "skipped": "duplicate_sha"})
+        existing = store.get_note(merge["sha"])
+        if existing and existing.get("notified"):
+            return _response(200, {"ok": True, "skipped": "duplicate_sha"})
+        # pending note: fall through and retry Slack
 
     channel = secrets.get("slack_channel") or "#shipped"
-    post_shipped(
-        secrets["slack_bot_token"],
-        channel,
-        repo=repo,
-        sha=merge["sha"],
-        title=merge["title"],
-        pr_url=merge["pr_url"],
-        author=merge.get("author"),
-    )
+    try:
+        post_shipped(
+            secrets["slack_bot_token"],
+            channel,
+            repo=repo,
+            sha=merge["sha"],
+            title=merge["title"],
+            pr_url=merge["pr_url"],
+            author=merge.get("author"),
+        )
+    except Exception as exc:
+        logger.exception("slack_failed sha=%s", merge["sha"])
+        # 5xx so GitHub redelivers; note stays notified=false
+        return _response(502, {"ok": False, "error": "slack_failed", "detail": str(exc)})
+
+    store.mark_notified(merge["sha"])
     return _response(200, {"ok": True, "shipped": merge["sha"]})
 
 
@@ -85,7 +94,6 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     store = Store(settings.notes_table, settings.repos_table)
 
     headers = {k.lower(): v for k, v in (event.get("headers") or {}).items()}
-    # Normalize common casing after lowercasing keys
     raw_headers = event.get("headers") or {}
     for key in ("X-Hub-Signature-256", "X-GitHub-Event", "x-hub-signature-256", "x-github-event"):
         if key in raw_headers:

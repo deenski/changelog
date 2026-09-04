@@ -59,5 +59,5 @@ class Store:
         self.notes.update_item(
             Key={"sha": sha},
             UpdateExpression="SET notified = :t",
-            ExpressionAttributeValues=":t",  # placeholder fixed below
+            ExpressionAttributeValues={":t": True},
         )
