@@ -1,0 +1,78 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Changelog v0 ingest (KAN-2) — GitHub merge notes → Slack #shipped
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 30
+    MemorySize: 256
+    Architectures:
+      - arm64
+
+Parameters:
+  SecretsArn:
+    Type: String
+    Description: Secrets Manager ARN with GitHub App + Slack credentials
+  FreeTierRepoLimit:
+    Type: Number
+    Default: 5
+
+Resources:
+  NotesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AWS::StackName}-notes'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: sha
+          AttributeType: S
+      KeySchema:
+        - AttributeName: sha
+          KeyType: HASH
+
+  ReposTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AWS::StackName}-repos'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: repo
+          AttributeType: S
+      KeySchema:
+        - AttributeName: repo
+          KeyType: HASH
+
+  IngestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: changelog.handler.lambda_handler
+      Environment:
+        Variables:
+          NOTES_TABLE: !Ref NotesTable
+          REPOS_TABLE: !Ref ReposTable
+          SECRETS_ARN: !Ref SecretsArn
+          FREE_TIER_REPO_LIMIT: !Ref FreeTierRepoLimit
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref NotesTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ReposTable
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Ref SecretsArn
+      Events:
+        Webhook:
+          Type: HttpApi
+          Properties:
+            Path: /webhook
+            Method: POST
+
+Outputs:
+  WebhookUrl:
+    Description: GitHub App webhook URL
+    Value: !Sub 'https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/webhook'
+  NotesTableName:
+    Value: !Ref NotesTable
+  ReposTableName:
+    Value: !Ref ReposTable
