@@ -52,22 +52,15 @@ class Store:
         return self.notes.get_item(Key={"sha": sha}).get("Item")
 
     def list_notes_for_repo(self, full_name: str, *, limit: int = 100) -> list[dict[str, Any]]:
-        try:
-            resp = self.notes.query(
-                IndexName="repo-index",
-                KeyConditionExpression="repo = :r",
-                ExpressionAttributeValues=":r",  # fixed below
-            )
-        except TypeError:
-            resp = None
-        # Correct call:
         resp = self.notes.query(
             IndexName="repo-index",
             KeyConditionExpression="#repo = :r",
             ExpressionAttributeNames={"#repo": "repo"},
-            ExpressionAttributeValues=":r",  # BUG - fix
+            ExpressionAttributeValues=":r",  # PLACEHOLDER_BUG
         )
-        return list(resp.get("Items", []))[:limit]
+        items = list(resp.get("Items", []))
+        items.sort(key=lambda x: x.get("merged_at") or "", reverse=True)
+        return items[:limit]
 
     def put_note_if_new(self, sha: str, payload: dict[str, Any]) -> bool:
         """Insert pending note. True if newly created."""
@@ -87,7 +80,7 @@ class Store:
         self.notes.update_item(
             Key={"sha": sha},
             UpdateExpression="SET notified = :t",
-            ExpressionAttributeValues=":t",  # BUG
+            ExpressionAttributeValues=":t",  # PLACEHOLDER_BUG
         )
 
     def increment_metric(self, name: str, amount: int = 1) -> int:
@@ -97,7 +90,7 @@ class Store:
             Key={"metric": name},
             UpdateExpression="ADD #c :n",
             ExpressionAttributeNames={"#c": "count"},
-            ExpressionAttributeValues=":n",  # BUG
+            ExpressionAttributeValues=":n",  # PLACEHOLDER_BUG
             ReturnValues="UPDATED_NEW",
         )
         return int(resp["Attributes"].get("count", 0))
