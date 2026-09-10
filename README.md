@@ -1,24 +1,35 @@
 # Changelog
 
-MRR experiment (KAN-1): turn merged PRs into short Slack `#shipped` notes.
+Merge notes → Slack `#shipped`, plus a **free** public read-only changelog page.
 
 **v0 (KAN-2):** GitHub App → idempotent note-per-SHA → Slack. Free: ≤5 allowlisted repos.
 
-Out of scope here: public page, Stripe (KAN-3/KAN-4), Jira.
+**KAN-6:** Public `/changelog` pages + install landing + basic adoption metrics. No Stripe.
+
+Out of scope: Stripe (KAN-3), Pro >5 (KAN-4), custom domain (KAN-5).
 
 ## Stack (AWS GA only)
 
 - API Gateway HTTP API
 - Lambda (Python 3.12)
-- DynamoDB (`notes` by SHA, `repos` allowlist/mute)
+- DynamoDB (`notes` by SHA + `repo-index` GSI, `repos` allowlist/mute, `metrics` counters)
 - Secrets Manager (GitHub App + Slack bot token)
 - **IaC: AWS CDK (Python)**
+
+## Stranger install
+
+See [docs/install.md](docs/install.md). Short path:
+
+1. Install [deenski-changelog](https://github.com/apps/deenski-changelog) on ≤5 repos.
+2. Invite the Slack bot to `#shipped`.
+3. Merge a PR → Slack note + public page entry.
 
 ## Layout
 
 ```
 src/changelog/   # Lambda package
 infra/           # CDK app + stack
+docs/            # install / adoption
 tests/           # unit tests (no AWS)
 ```
 
@@ -40,7 +51,7 @@ cdk bootstrap   # once per account/region
 cdk deploy -c secretsArn=arn:aws:secretsmanager:...:secret:changelog/...
 ```
 
-Webhook URL is a stack output (`WebhookUrl`).
+Stack outputs: `WebhookUrl`, `PublicChangelogUrl`, `InstallLandingUrl`, `MetricsUrl`.
 
 ## GitHub App
 
@@ -59,22 +70,23 @@ Webhook URL is a stack output (`WebhookUrl`).
 }
 ```
 
-`github_app_id` / private key are reserved for future App API calls. **v0 receive path is HMAC webhook verify only.**
+`github_app_id` / private key are reserved for future App API calls. **Receive path is HMAC webhook verify only.**
 
-## Allowlist (v0)
+## Allowlist (free)
 
 | repo (S) | muted (BOOL) |
 |----------|--------------|
 | `owner/repo` | `false` |
 
-Muted or missing → no-op. Free-tier ≤5 is enforced when **adding** a repo (`Store.try_add_repo`), not on every ingest — overfilling the table must not silence the first five.
+Muted or missing → no-op. Free-tier ≤5 is enforced when **adding** a repo (`Store.try_add_repo`), not on every ingest.
 
 ## Failure / retry
 
-Notes are written `notified=false`, Slack runs, then `notified=true`. If Slack fails, the handler returns **5xx** and GitHub redelivers; pending notes retry Slack without being stuck as silent duplicates.
+Notes are written `notified=false`, Slack runs, then `notified=true`. If Slack fails, the handler returns **5xx** and GitHub redelivers.
 
 ## Dogfood
 
 1. Deploy via CDK.
-2. `try_add_repo` / put `deenski/changelog` in `repos`.
-3. Merge a PR → one Slack note per merge SHA; redeliver → no duplicate after notified.
+2. Ensure `deenski/changelog` is in `repos` with `muted=false`.
+3. Open `PublicChangelogUrl` / `changelog/deenski/changelog`.
+4. Merge a PR → Slack + public page; `/metrics` shows `page_hits` / `landing_hits`.
