@@ -21,8 +21,9 @@ Out of scope: Stripe (KAN-3), Pro >5 (KAN-4), custom domain (KAN-5).
 See [docs/install.md](docs/install.md). Short path:
 
 1. Install [deenski-changelog](https://github.com/apps/deenski-changelog) on ≤5 repos.
-2. Invite the Slack bot to `#shipped`.
-3. Merge a PR → Slack note + public page entry.
+2. **Ops:** add each repo to the DynamoDB allowlist (`muted=false`) — App install alone does not allowlist (v0).
+3. Invite the Slack bot to `#shipped`.
+4. Merge a PR → Slack note + public page entry.
 
 ## Layout
 
