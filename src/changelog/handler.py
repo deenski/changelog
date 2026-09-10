@@ -150,7 +150,6 @@ def handle_public_get(path: str, store: Store) -> dict[str, Any]:
 
 def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     settings = load_settings()
-    secrets = load_secrets(settings.secrets_arn)
     store = Store(
         settings.notes_table,
         settings.repos_table,
@@ -161,9 +160,11 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     path = _route_path(event)
 
     if method == "GET":
+        # Public pages never touch Secrets Manager.
         return handle_public_get(path, store)
 
     if method == "POST" and path.endswith("/webhook"):
+        secrets = load_secrets(settings.secrets_arn)
         headers = {k.lower(): v for k, v in (event.get("headers") or {}).items()}
         raw_headers = event.get("headers") or {}
         for key in ("X-Hub-Signature-256", "X-GitHub-Event", "x-hub-signature-256", "x-github-event"):

@@ -27,14 +27,14 @@ def render_landing(*, changelog_path: str = "/changelog") -> str:
 </head>
 <body>
   <h1>Changelog (free)</h1>
-  <p>Merged PRs become short notes in Slack. No paywall — free tier is ≤5 repos.</p>
+  <p>Merged PRs become short notes in Slack. Free tier is ≤5 allowlisted repos. No paywall.</p>
   <ol>
-    <li>Install the GitHub App: <a href="{_esc(APP_INSTALL_URL)}">deenski-changelog</a></li>
-    <li>Pick up to 5 repos (we allowlist + mute extras).</li>
+    <li>Install the GitHub App: <a href="{_esc(APP_INSTALL_URL)}">deenski-changelog</a> on up to 5 repos.</li>
+    <li><strong>v0:</strong> App install alone is not enough — ops must add each repo to the DynamoDB allowlist (<code>muted=false</code>). Cap enforced via <code>try_add_repo</code>.</li>
     <li>Invite the Slack bot to <code>#shipped</code> (or your channel).</li>
     <li>Merge a PR — a note lands in Slack and on the <a href="{_esc(changelog_path)}">public changelog</a>.</li>
   </ol>
-  <p>Full walkthrough: see <code>docs/install.md</code> in the repo.</p>
+  <p>Full walkthrough (incl. ops allowlist): see <code>docs/install.md</code> in the repo.</p>
 </body>
 </html>
 """
