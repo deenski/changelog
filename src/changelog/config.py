@@ -13,6 +13,7 @@ import boto3
 class Settings:
     notes_table: str
     repos_table: str
+    metrics_table: str
     secrets_arn: str
     free_tier_repo_limit: int
 
@@ -21,6 +22,7 @@ def load_settings() -> Settings:
     return Settings(
         notes_table=os.environ["NOTES_TABLE"],
         repos_table=os.environ["REPOS_TABLE"],
+        metrics_table=os.environ.get("METRICS_TABLE", ""),
         secrets_arn=os.environ["SECRETS_ARN"],
         free_tier_repo_limit=int(os.environ.get("FREE_TIER_REPO_LIMIT", "5")),
     )
