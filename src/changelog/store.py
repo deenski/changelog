@@ -56,7 +56,7 @@ class Store:
             IndexName="repo-index",
             KeyConditionExpression="#repo = :r",
             ExpressionAttributeNames={"#repo": "repo"},
-            ExpressionAttributeValues=":r",  # WILL_REPLACE
+            ExpressionAttributeValues={":r": full_name},
         )
         items = list(resp.get("Items", []))
         items.sort(key=lambda x: x.get("merged_at") or x.get("sha") or "", reverse=True)
@@ -80,7 +80,7 @@ class Store:
         self.notes.update_item(
             Key={"sha": sha},
             UpdateExpression="SET notified = :t",
-            ExpressionAttributeValues=":t",  # WILL_REPLACE
+            ExpressionAttributeValues={":t": True},
         )
 
     def increment_metric(self, name: str, amount: int = 1) -> int:
@@ -90,7 +90,7 @@ class Store:
             Key={"metric": name},
             UpdateExpression="ADD #c :n",
             ExpressionAttributeNames={"#c": "count"},
-            ExpressionAttributeValues=":n",  # WILL_REPLACE
+            ExpressionAttributeValues={":n": amount},
             ReturnValues="UPDATED_NEW",
         )
         return int(resp["Attributes"].get("count", 0))

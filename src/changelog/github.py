@@ -34,6 +34,7 @@ def parse_merged_pull_request(event_name: str, payload: dict[str, Any]) -> dict[
         "pr_url": pr.get("html_url") or "",
         "pr_number": pr.get("number"),
         "author": (pr.get("user") or {}).get("login"),
+        "merged_at": pr.get("merged_at") or "",
     }
 
 
