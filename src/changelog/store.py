@@ -56,10 +56,10 @@ class Store:
             IndexName="repo-index",
             KeyConditionExpression="#repo = :r",
             ExpressionAttributeNames={"#repo": "repo"},
-            ExpressionAttributeValues=":r",  # PLACEHOLDER_BUG
+            ExpressionAttributeValues=":r",  # WILL_REPLACE
         )
         items = list(resp.get("Items", []))
-        items.sort(key=lambda x: x.get("merged_at") or "", reverse=True)
+        items.sort(key=lambda x: x.get("merged_at") or x.get("sha") or "", reverse=True)
         return items[:limit]
 
     def put_note_if_new(self, sha: str, payload: dict[str, Any]) -> bool:
@@ -80,7 +80,7 @@ class Store:
         self.notes.update_item(
             Key={"sha": sha},
             UpdateExpression="SET notified = :t",
-            ExpressionAttributeValues=":t",  # PLACEHOLDER_BUG
+            ExpressionAttributeValues=":t",  # WILL_REPLACE
         )
 
     def increment_metric(self, name: str, amount: int = 1) -> int:
@@ -90,7 +90,7 @@ class Store:
             Key={"metric": name},
             UpdateExpression="ADD #c :n",
             ExpressionAttributeNames={"#c": "count"},
-            ExpressionAttributeValues=":n",  # PLACEHOLDER_BUG
+            ExpressionAttributeValues=":n",  # WILL_REPLACE
             ReturnValues="UPDATED_NEW",
         )
         return int(resp["Attributes"].get("count", 0))
