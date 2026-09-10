@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import aws_cdk as cdk
 from aws_cdk import (
     CfnOutput,
     Duration,
@@ -38,10 +37,24 @@ class ChangelogIngestStack(Stack):
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             removal_policy=RemovalPolicy.DESTROY,
         )
+        notes.add_global_secondary_index(
+            index_name="repo-index",
+            partition_key=dynamodb.Attribute(name="repo", type=dynamodb.AttributeType.STRING),
+            projection_type=dynamodb.ProjectionType.ALL,
+        )
+
         repos = dynamodb.Table(
             self,
             "Repos",
             partition_key=dynamodb.Attribute(name="repo", type=dynamodb.AttributeType.STRING),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            removal_policy=RemovalPolicy.DESTROY,
+        )
+
+        metrics = dynamodb.Table(
+            self,
+            "Metrics",
+            partition_key=dynamodb.Attribute(name="metric", type=dynamodb.AttributeType.STRING),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             removal_policy=RemovalPolicy.DESTROY,
         )
@@ -60,22 +73,55 @@ class ChangelogIngestStack(Stack):
             environment={
                 "NOTES_TABLE": notes.table_name,
                 "REPOS_TABLE": repos.table_name,
+                "METRICS_TABLE": metrics.table_name,
                 "SECRETS_ARN": secrets_arn,
                 "FREE_TIER_REPO_LIMIT": str(free_tier_repo_limit),
             },
         )
         notes.grant_read_write_data(fn)
         repos.grant_read_write_data(fn)
+        metrics.grant_read_write_data(fn)
         secret.grant_read(fn)
 
-        http_api = apigwv2.HttpApi(self, "WebhookApi")
+        http_api = apigwv2.HttpApi(
+            self,
+            "WebhookApi",
+            cors_preflight=apigwv2.CorsPreflightOptions(
+                allow_methods=[apigwv2.CorsHttpMethod.GET, apigwv2.CorsHttpMethod.POST],
+                allow_origins=["*"],
+            ),
+        )
         integration = apigwv2_integrations.HttpLambdaIntegration("IngestIntegration", fn)
         http_api.add_routes(
             path="/webhook",
             methods=[apigwv2.HttpMethod.POST],
             integration=integration,
         )
+        http_api.add_routes(
+            path="/changelog",
+            methods=[apigwv2.HttpMethod.GET],
+            integration=integration,
+        )
+        http_api.add_routes(
+            path="/changelog/{owner}/{repo}",
+            methods=[apigwv2.HttpMethod.GET],
+            integration=integration,
+        )
+        http_api.add_routes(
+            path="/metrics",
+            methods=[apigwv2.HttpMethod.GET],
+            integration=integration,
+        )
+        http_api.add_routes(
+            path="/",
+            methods=[apigwv2.HttpMethod.GET],
+            integration=integration,
+        )
 
         CfnOutput(self, "WebhookUrl", value=f"{http_api.api_endpoint}/webhook")
+        CfnOutput(self, "PublicChangelogUrl", value=f"{http_api.api_endpoint}/changelog")
+        CfnOutput(self, "InstallLandingUrl", value=f"{http_api.api_endpoint}/")
+        CfnOutput(self, "MetricsUrl", value=f"{http_api.api_endpoint}/metrics")
         CfnOutput(self, "NotesTableName", value=notes.table_name)
         CfnOutput(self, "ReposTableName", value=repos.table_name)
+        CfnOutput(self, "MetricsTableName", value=metrics.table_name)

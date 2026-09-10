@@ -49,16 +49,38 @@ class FakeRepos:
         return {"Items": list(self.items.values())}
 
 
+class FakeMetrics:
+    def __init__(self):
+        self.counts: dict[str, int] = {}
+
+    def update_item(self, Key, UpdateExpression=None, ExpressionAttributeNames=None, ExpressionAttributeValues=None, ReturnValues=None):
+        name = Key["metric"]
+        amount = (ExpressionAttributeValues or {}).get(":n", 1)
+        self.counts[name] = self.counts.get(name, 0) + int(amount)
+        return {"Attributes": {"count": self.counts[name]}}
+
+    def get_item(self, Key):
+        name = Key["metric"]
+        if name not in self.counts:
+            return {}
+        return {"Item": {"metric": name, "count": self.counts[name]}}
+
+
 class FakeStore:
     def __init__(self, repos: dict[str, dict[str, Any]] | None = None):
         self.notes = FakeNotes()
         self.repos = FakeRepos(repos)
+        self._metrics = FakeMetrics()
+        self.metrics = self._metrics
 
     def get_repo(self, full_name: str):
         return self.repos.get_item(Key={"repo": full_name}).get("Item")
 
+    def list_active_repos(self) -> list[str]:
+        return sorted(i["repo"] for i in self.repos.items.values() if not i.get("muted", False))
+
     def count_active_repos(self) -> int:
-        return sum(1 for i in self.repos.items.values() if not i.get("muted", False))
+        return len(self.list_active_repos())
 
     def try_add_repo(self, full_name: str, *, muted: bool = False, free_tier_limit: int = 5) -> bool:
         if self.get_repo(full_name) is not None:
@@ -70,6 +92,11 @@ class FakeStore:
 
     def get_note(self, sha: str):
         return self.notes.get_item(Key={"sha": sha}).get("Item")
+
+    def list_notes_for_repo(self, full_name: str, *, limit: int = 100):
+        items = [n for n in self.notes.items.values() if n.get("repo") == full_name]
+        items.sort(key=lambda x: x.get("merged_at") or x.get("sha") or "", reverse=True)
+        return items[:limit]
 
     def put_note_if_new(self, sha: str, payload: dict[str, Any]) -> bool:
         try:
@@ -89,6 +116,17 @@ class FakeStore:
             UpdateExpression="SET notified = :t",
             ExpressionAttributeValues={":t": True},
         )
+
+    def increment_metric(self, name: str, amount: int = 1) -> int:
+        resp = self._metrics.update_item(
+            Key={"metric": name},
+            ExpressionAttributeValues={":n": amount},
+        )
+        return int(resp["Attributes"]["count"])
+
+    def get_metric(self, name: str) -> int:
+        item = self._metrics.get_item(Key={"metric": name}).get("Item") or {}
+        return int(item.get("count", 0))
 
 
 def _signed(body: bytes, secret: str) -> str:
@@ -222,3 +260,53 @@ def test_bad_signature_401(monkeypatch):
     )
     assert resp["statusCode"] == 401
     assert json.loads(resp["body"])["error"] == "bad_signature"
+
+
+def test_public_changelog_index_increments_hits():
+    from changelog.handler import handle_public_get
+
+    store = FakeStore(repos={"deenski/changelog": {"repo": "deenski/changelog", "muted": False}})
+    resp = handle_public_get("/changelog", store)
+    assert resp["statusCode"] == 200
+    assert "deenski/changelog" in resp["body"]
+    assert store.get_metric("page_hits") == 1
+
+
+def test_public_repo_page_and_404_muted():
+    from changelog.handler import handle_public_get
+
+    store = FakeStore(
+        repos={
+            "deenski/changelog": {"repo": "deenski/changelog", "muted": False},
+            "deenski/secret": {"repo": "deenski/secret", "muted": True},
+        }
+    )
+    store.put_note_if_new(
+        "abc1234dead",
+        {
+            "repo": "deenski/changelog",
+            "title": "Ship it",
+            "pr_url": "https://github.com/deenski/changelog/pull/2",
+            "author": "deenski",
+            "merged_at": "2026-09-09T12:00:00Z",
+        },
+    )
+    ok = handle_public_get("/changelog/deenski/changelog", store)
+    assert ok["statusCode"] == 200
+    assert "Ship it" in ok["body"]
+    muted = handle_public_get("/changelog/deenski/secret", store)
+    assert muted["statusCode"] == 404
+
+
+def test_metrics_endpoint():
+    from changelog.handler import handle_public_get
+    import json
+
+    store = FakeStore(repos={"deenski/changelog": {"repo": "deenski/changelog", "muted": False}})
+    handle_public_get("/", store)
+    handle_public_get("/changelog", store)
+    resp = handle_public_get("/metrics", store)
+    body = json.loads(resp["body"])
+    assert body["landing_hits"] == 1
+    assert body["page_hits"] == 1
+    assert body["active_repos"] == 1
