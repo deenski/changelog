@@ -4,7 +4,7 @@ Project rules for Grok Build (`grok`) and other coding agents. Keep this short a
 
 ## Product
 
-- Merge notes → Slack `#shipped` + free public `/changelog` pages.
+- Merge notes → Slack (channel from Secrets Manager `slack_channel`, default `#shipped`) + free public `/changelog` pages.
 - Free tier: ≤5 allowlisted repos. Prove free signup/adoption before Stripe.
 - Out of scope unless Product tickets it: Stripe (KAN-3), Pro >5 (KAN-4), custom domain (KAN-5).
 - Do not invent product scope. Coordinate with Product / Orchestrator.
@@ -48,6 +48,7 @@ Stack outputs: `WebhookUrl`, `PublicChangelogUrl`, `InstallLandingUrl`, `Metrics
 ## Do / Don’t
 
 - Don’t commit secrets. Use Secrets Manager; shape is in `secrets.example.json`.
+- Slack destination is configurable via Secrets Manager `slack_channel` (default `#shipped`); do not hard-code the only channel in product docs.
 - Don’t add non-GA AWS services.
 - Prefer small PRs. Ask before merging to main, force-pushing, or hard-to-undo ops.
 - Allowlist gate: DynamoDB `repos` (`muted=false`); App install alone does not allowlist (v0).

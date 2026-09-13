@@ -8,7 +8,7 @@ when-to-use: cdk deploy, cdk bootstrap, ship infra, deploy changelog stack
 
 ## Preconditions
 
-- AWS credentials with deploy rights (Jakob’s IAM keys if not already configured).
+- AWS credentials with deploy rights (named CLI profile / access keys configured locally — never commit keys).
 - Secrets Manager secret exists; pass its ARN as `-c secretsArn=...`.
 - Never invent or commit secret values; shape is `secrets.example.json`.
 
