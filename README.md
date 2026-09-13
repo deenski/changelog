@@ -6,6 +6,8 @@ Merge notes → Slack `#shipped`, plus a **free** public read-only changelog pag
 
 **KAN-6:** Public `/changelog` pages + install landing + basic adoption metrics. No Stripe.
 
+**KAN-12:** IaC is **AWS CDK (TypeScript)**. Lambda runtime stays Python 3.12.
+
 Out of scope: Stripe (KAN-3), Pro >5 (KAN-4), custom domain (KAN-5).
 
 ## Stack (AWS GA only)
@@ -14,7 +16,7 @@ Out of scope: Stripe (KAN-3), Pro >5 (KAN-4), custom domain (KAN-5).
 - Lambda (Python 3.12)
 - DynamoDB (`notes` by SHA + `repo-index` GSI, `repos` allowlist/mute, `metrics` counters)
 - Secrets Manager (GitHub App + Slack bot token)
-- **IaC: AWS CDK (Python)**
+- **IaC: AWS CDK (TypeScript)**
 
 ## Stranger install
 
@@ -28,8 +30,8 @@ See [docs/install.md](docs/install.md). Short path:
 ## Layout
 
 ```
-src/changelog/   # Lambda package
-infra/           # CDK app + stack
+src/changelog/   # Lambda package (Python)
+infra/           # CDK app + stack (TypeScript)
 docs/            # install / adoption
 tests/           # unit tests (no AWS)
 ```
@@ -46,11 +48,13 @@ pytest -q
 
 ```bash
 cd infra
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cdk bootstrap   # once per account/region
-cdk deploy -c secretsArn=arn:aws:secretsmanager:...:secret:changelog/...
+npm install
+npx cdk bootstrap   # once per account/region
+export SECRETS_ARN=arn:aws:secretsmanager:...:secret:changelog/...
+npx cdk deploy -c secretsArn="$SECRETS_ARN"
 ```
+
+Optional: named AWS CLI profile (`AWS_PROFILE=changelog`) — keep secrets out of code; app secrets stay in Secrets Manager.
 
 Stack outputs: `WebhookUrl`, `PublicChangelogUrl`, `InstallLandingUrl`, `MetricsUrl`.
 
