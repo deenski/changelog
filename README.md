@@ -48,7 +48,7 @@ pytest -q
 
 ```bash
 cd infra
-npm install
+npm ci
 npx cdk bootstrap   # once per account/region
 export SECRETS_ARN=arn:aws:secretsmanager:...:secret:changelog/...
 npx cdk deploy -c secretsArn="$SECRETS_ARN"
