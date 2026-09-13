@@ -12,13 +12,13 @@ Project rules for Grok Build (`grok`) and other coding agents. Keep this short a
 ## Stack (hard rules)
 
 - AWS **GA only**: API Gateway HTTP API, Lambda (Python 3.12), DynamoDB, Secrets Manager.
-- IaC: **AWS CDK (Python)** in `infra/` — never Terraform.
-- App language for this repo: **Python**. Org default elsewhere: Python or TypeScript; Go OK; avoid Rust unless asked.
+- IaC: **AWS CDK (TypeScript)** in `infra/` — never Terraform. (KAN-12; Lambda app code stays Python.)
+- App (Lambda) language for this repo: **Python**. Org default elsewhere: Python or TypeScript; Go OK; avoid Rust unless asked.
 
 ## Layout
 
-- `src/changelog/` — Lambda package
-- `infra/` — CDK app + stack
+- `src/changelog/` — Lambda package (Python)
+- `infra/` — CDK app + stack (TypeScript)
 - `docs/` — install / adoption
 - `tests/` — unit tests (no AWS)
 - `.grok/skills/` — optional Grok Build project skills
@@ -37,10 +37,10 @@ Deploy (after secrets exist in Secrets Manager):
 
 ```bash
 cd infra
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cdk bootstrap   # once per account/region
-cdk deploy -c secretsArn=arn:aws:secretsmanager:...:secret:changelog/...
+npm install
+npx cdk bootstrap   # once per account/region
+export SECRETS_ARN=arn:aws:secretsmanager:...:secret:changelog/...
+npx cdk deploy -c secretsArn="$SECRETS_ARN"
 ```
 
 Stack outputs: `WebhookUrl`, `PublicChangelogUrl`, `InstallLandingUrl`, `MetricsUrl`.

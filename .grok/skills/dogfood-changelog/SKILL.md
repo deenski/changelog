@@ -1,6 +1,6 @@
 ---
 name: dogfood-changelog
-description: Use this when dogfooding changelog after deploy — allowlist, public page, Slack #shipped, metrics.
+description: Use this when dogfooding changelog after deploy — allowlist, public page, Slack, metrics.
 when-to-use: dogfood, verify ship, post-deploy check, changelog smoke test
 ---
 
@@ -9,7 +9,7 @@ when-to-use: dogfood, verify ship, post-deploy check, changelog smoke test
 1. Confirm stack is deployed (outputs present).
 2. Ensure `deenski/changelog` is in DynamoDB `repos` with `muted=false`.
 3. Open `PublicChangelogUrl` / path `changelog/deenski/changelog`.
-4. Invite Slack bot to `#shipped` if needed.
+4. Invite Slack bot to the channel in Secrets Manager `slack_channel` (default `#shipped`) if needed.
 5. Merge a PR on an allowlisted repo → expect Slack note + public page entry.
 6. Hit `/metrics` — expect `page_hits` / `landing_hits` counters to move.
 7. If Slack fails after note write, expect 5xx + GitHub redelivery (by design).
