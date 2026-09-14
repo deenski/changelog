@@ -1,0 +1,24 @@
+{
+  "name": "changelog-infra",
+  "version": "0.1.0",
+  "private": true,
+  "bin": {
+    "changelog-infra": "bin/changelog.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "cdk": "cdk",
+    "synth": "cdk synth -c secretsArn=${SECRETS_ARN:?set SECRETS_ARN}"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "aws-cdk": "^2.150.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.0"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.150.0",
+    "constructs": "^10.0.0"
+  }
+}
