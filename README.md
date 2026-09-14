@@ -34,6 +34,7 @@ src/changelog/   # Lambda package (Python)
 infra/           # CDK app + stack (TypeScript)
 docs/            # install / adoption
 tests/           # unit tests (no AWS)
+AGENTS.md        # project rules for Grok Build / coding agents
 ```
 
 ## Local tests
